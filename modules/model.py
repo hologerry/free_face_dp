@@ -15,7 +15,10 @@ class Vgg19(torch.nn.Module):
     """
     def __init__(self, requires_grad=False):
         super(Vgg19, self).__init__()
-        vgg_pretrained_features = models.vgg19(pretrained=True).features
+        network = models.vgg19()
+        state_dict = torch.load('face-vid2vid/weights/vgg19-dcbb9e9d.pth', map_location=torch.device("cpu"))
+        network.load_state_dict(state_dict)
+        vgg_pretrained_features = network.features
         self.slice1 = torch.nn.Sequential()
         self.slice2 = torch.nn.Sequential()
         self.slice3 = torch.nn.Sequential()

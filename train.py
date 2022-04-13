@@ -1,16 +1,15 @@
-from tqdm import trange
+import time
+
 import torch
-
-from torch.utils.data import DataLoader
-
-from logger import Logger
-from modules.model import GeneratorFullModel, DiscriminatorFullModel
-
 from torch.optim.lr_scheduler import MultiStepLR
+from torch.utils.data import DataLoader
+from tqdm import trange
 
-from sync_batchnorm import DataParallelWithCallback
-
+from average_meter import AverageMeter
 from frames_dataset import DatasetRepeater
+from logger import Logger
+from modules.model import DiscriminatorFullModel, GeneratorFullModel
+from sync_batchnorm import DataParallelWithCallback
 
 
 def train(config, generator, discriminator, kp_detector, he_estimator, checkpoint, log_dir, dataset, device_ids):
@@ -46,12 +45,20 @@ def train(config, generator, discriminator, kp_detector, he_estimator, checkpoin
     if torch.cuda.is_available():
         generator_full = DataParallelWithCallback(generator_full, device_ids=device_ids)
         discriminator_full = DataParallelWithCallback(discriminator_full, device_ids=device_ids)
-
+    g_batch_time = AverageMeter()
+    g_back_time = AverageMeter()
+    d_batch_time = AverageMeter()
+    d_back_time = AverageMeter()
+    data_time = AverageMeter()
+    end = time.time()
     with Logger(log_dir=log_dir, visualizer_params=config['visualizer_params'], checkpoint_freq=train_params['checkpoint_freq']) as logger:
         for epoch in trange(start_epoch, train_params['num_epochs']):
-            for x in dataloader:
+            for i, x in enumerate(dataloader):
+                data_time.update(time.time() - end)
+                end = time.time()
                 losses_generator, generated = generator_full(x)
-
+                g_batch_time.update(time.time() - end)
+                end = time.time()
                 loss_values = [val.mean() for val in losses_generator.values()]
                 loss = sum(loss_values)
 
@@ -62,19 +69,30 @@ def train(config, generator, discriminator, kp_detector, he_estimator, checkpoin
                 optimizer_kp_detector.zero_grad()
                 optimizer_he_estimator.step()
                 optimizer_he_estimator.zero_grad()
+                g_back_time.update(time.time() - end)
+                end = time.time()
 
                 if train_params['loss_weights']['generator_gan'] != 0:
                     optimizer_discriminator.zero_grad()
                     losses_discriminator = discriminator_full(x, generated)
+                    d_batch_time.update(time.time() - end)
+                    end = time.time()
+
                     loss_values = [val.mean() for val in losses_discriminator.values()]
                     loss = sum(loss_values)
 
                     loss.backward()
                     optimizer_discriminator.step()
                     optimizer_discriminator.zero_grad()
-                else:
-                    losses_discriminator = {}
 
+                    d_back_time.update(time.time() - end)
+                    end = time.time()
+                else:
+                    d_batch_time.update(0)
+                    d_back_time.update(0)
+                    losses_discriminator = {}
+                if i % 10 == 0:
+                    print(f"Iter [{i}/{len(dataloader)}] done g batch {g_batch_time.avg:.6f} g back {g_back_time.avg:.6f} d batch {d_batch_time.avg:.6f} d back {d_back_time.avg:.6f}")
                 losses_generator.update(losses_discriminator)
                 losses = {key: value.mean().detach().data.cpu().numpy() for key, value in losses_generator.items()}
                 logger.log_iter(losses=losses)
@@ -83,7 +101,7 @@ def train(config, generator, discriminator, kp_detector, he_estimator, checkpoin
             scheduler_discriminator.step()
             scheduler_kp_detector.step()
             scheduler_he_estimator.step()
-            
+
             logger.log_epoch(epoch, {'generator': generator,
                                      'discriminator': discriminator,
                                      'kp_detector': kp_detector,
@@ -92,3 +110,4 @@ def train(config, generator, discriminator, kp_detector, he_estimator, checkpoin
                                      'optimizer_discriminator': optimizer_discriminator,
                                      'optimizer_kp_detector': optimizer_kp_detector,
                                      'optimizer_he_estimator': optimizer_he_estimator}, inp=x, out=generated)
+            print(f"epoch {epoch} done!")
