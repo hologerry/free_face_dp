@@ -19,7 +19,7 @@ import torch
 from train import train
 
 if __name__ == "__main__":
-    
+
     if sys.version_info[0] < 3:
         raise Exception("You must use Python 3 or higher. Recommended version is Python 3.7")
 
@@ -43,7 +43,7 @@ if __name__ == "__main__":
     else:
         log_dir = os.path.join(opt.log_dir, os.path.basename(opt.config).split('.')[0])
         log_dir += ' ' + strftime("%d_%m_%y_%H.%M.%S", gmtime())
-        
+
 
     if opt.gen == 'original':
         generator = OcclusionAwareGenerator(**config['model_params']['generator_params'],

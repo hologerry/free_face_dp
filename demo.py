@@ -46,16 +46,16 @@ def load_checkpoints(config_path, checkpoint_path, gen, cpu=False):
                                **config['model_params']['common_params'])
     if not cpu:
         he_estimator.cuda()
-    
+
     if cpu:
         checkpoint = torch.load(checkpoint_path, map_location=torch.device('cpu'))
     else:
         checkpoint = torch.load(checkpoint_path)
- 
+
     generator.load_state_dict(checkpoint['generator'])
     kp_detector.load_state_dict(checkpoint['kp_detector'])
     he_estimator.load_state_dict(checkpoint['he_estimator'])
-    
+
     if not cpu:
         generator = DataParallelWithCallback(generator)
         kp_detector = DataParallelWithCallback(kp_detector)
@@ -64,7 +64,7 @@ def load_checkpoints(config_path, checkpoint_path, gen, cpu=False):
     generator.eval()
     kp_detector.eval()
     he_estimator.eval()
-    
+
     return generator, kp_detector, he_estimator
 
 
@@ -88,17 +88,17 @@ def get_rotation_matrix(yaw, pitch, roll):
     pitch = pitch.unsqueeze(1)
     yaw = yaw.unsqueeze(1)
 
-    roll_mat = torch.cat([torch.ones_like(roll), torch.zeros_like(roll), torch.zeros_like(roll), 
+    roll_mat = torch.cat([torch.ones_like(roll), torch.zeros_like(roll), torch.zeros_like(roll),
                           torch.zeros_like(roll), torch.cos(roll), -torch.sin(roll),
                           torch.zeros_like(roll), torch.sin(roll), torch.cos(roll)], dim=1)
     roll_mat = roll_mat.view(roll_mat.shape[0], 3, 3)
 
-    pitch_mat = torch.cat([torch.cos(pitch), torch.zeros_like(pitch), torch.sin(pitch), 
+    pitch_mat = torch.cat([torch.cos(pitch), torch.zeros_like(pitch), torch.sin(pitch),
                            torch.zeros_like(pitch), torch.ones_like(pitch), torch.zeros_like(pitch),
                            -torch.sin(pitch), torch.zeros_like(pitch), torch.cos(pitch)], dim=1)
     pitch_mat = pitch_mat.view(pitch_mat.shape[0], 3, 3)
 
-    yaw_mat = torch.cat([torch.cos(yaw), -torch.sin(yaw), torch.zeros_like(yaw),  
+    yaw_mat = torch.cat([torch.cos(yaw), -torch.sin(yaw), torch.zeros_like(yaw),
                          torch.sin(yaw), torch.cos(yaw), torch.zeros_like(yaw),
                          torch.zeros_like(yaw), torch.zeros_like(yaw), torch.ones_like(yaw)], dim=1)
     yaw_mat = yaw_mat.view(yaw_mat.shape[0], 3, 3)
@@ -117,17 +117,17 @@ def get_rotation_matrix(yaw, pitch, roll):
     pitch = pitch.unsqueeze(1)
     yaw = yaw.unsqueeze(1)
 
-    pitch_mat = torch.cat([torch.ones_like(pitch), torch.zeros_like(pitch), torch.zeros_like(pitch), 
+    pitch_mat = torch.cat([torch.ones_like(pitch), torch.zeros_like(pitch), torch.zeros_like(pitch),
                           torch.zeros_like(pitch), torch.cos(pitch), -torch.sin(pitch),
                           torch.zeros_like(pitch), torch.sin(pitch), torch.cos(pitch)], dim=1)
     pitch_mat = pitch_mat.view(pitch_mat.shape[0], 3, 3)
 
-    yaw_mat = torch.cat([torch.cos(yaw), torch.zeros_like(yaw), torch.sin(yaw), 
+    yaw_mat = torch.cat([torch.cos(yaw), torch.zeros_like(yaw), torch.sin(yaw),
                            torch.zeros_like(yaw), torch.ones_like(yaw), torch.zeros_like(yaw),
                            -torch.sin(yaw), torch.zeros_like(yaw), torch.cos(yaw)], dim=1)
     yaw_mat = yaw_mat.view(yaw_mat.shape[0], 3, 3)
 
-    roll_mat = torch.cat([torch.cos(roll), -torch.sin(roll), torch.zeros_like(roll),  
+    roll_mat = torch.cat([torch.cos(roll), -torch.sin(roll), torch.zeros_like(roll),
                          torch.sin(roll), torch.cos(roll), torch.zeros_like(roll),
                          torch.zeros_like(roll), torch.zeros_like(roll), torch.ones_like(roll)], dim=1)
     roll_mat = roll_mat.view(roll_mat.shape[0], 3, 3)
@@ -163,7 +163,7 @@ def keypoint_transformation(kp_canonical, he, estimate_jacobian=True, free_view=
     t, exp = he['t'], he['exp']
 
     rot_mat = get_rotation_matrix(yaw, pitch, roll)
-    
+
     # keypoint rotation
     kp_rotated = torch.einsum('bmp,bkp->bkm', rot_mat, kp)
 
@@ -171,7 +171,7 @@ def keypoint_transformation(kp_canonical, he, estimate_jacobian=True, free_view=
     t = t.unsqueeze_(1).repeat(1, kp.shape[1], 1)
     kp_t = kp_rotated + t
 
-    # add expression deviation 
+    # add expression deviation
     exp = exp.view(exp.shape[0], -1, 3)
     kp_transformed = kp_t + exp
 
@@ -247,23 +247,23 @@ if __name__ == "__main__":
     parser.add_argument("--result_video", default='', help="path to output")
 
     parser.add_argument("--gen", default="spade", choices=["original", "spade"])
- 
+
     parser.add_argument("--relative", dest="relative", action="store_true", help="use relative or absolute keypoint coordinates")
     parser.add_argument("--adapt_scale", dest="adapt_scale", action="store_true", help="adapt movement scale based on convex hull of keypoints")
 
-    parser.add_argument("--find_best_frame", dest="find_best_frame", action="store_true", 
+    parser.add_argument("--find_best_frame", dest="find_best_frame", action="store_true",
                         help="Generate from the frame that is the most alligned with source. (Only for faces, requires face_aligment lib)")
 
-    parser.add_argument("--best_frame", dest="best_frame", type=int, default=None,  
+    parser.add_argument("--best_frame", dest="best_frame", type=int, default=None,
                         help="Set frame to start from.")
- 
+
     parser.add_argument("--cpu", dest="cpu", action="store_true", help="cpu mode.")
 
     parser.add_argument("--free_view", dest="free_view", action="store_true", help="control head pose")
     parser.add_argument("--yaw", dest="yaw", type=int, default=None, help="yaw")
     parser.add_argument("--pitch", dest="pitch", type=int, default=None, help="pitch")
     parser.add_argument("--roll", dest="roll", type=int, default=None, help="roll")
- 
+
 
     parser.set_defaults(relative=False)
     parser.set_defaults(adapt_scale=False)

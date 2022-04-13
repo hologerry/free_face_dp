@@ -155,4 +155,3 @@ if __name__ == "__main__":
     for command in commands:
         print (command)
 
-        

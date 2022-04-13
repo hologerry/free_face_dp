@@ -43,7 +43,7 @@ class Logger:
     def save_cpk(self, emergent=False):
         cpk = {k: v.state_dict() for k, v in self.models.items()}
         cpk['epoch'] = self.epoch
-        cpk_path = os.path.join(self.cpk_dir, '%s-checkpoint.pth.tar' % str(self.epoch).zfill(self.zfill_num)) 
+        cpk_path = os.path.join(self.cpk_dir, '%s-checkpoint.pth.tar' % str(self.epoch).zfill(self.zfill_num))
         if not (os.path.exists(cpk_path) and emergent):
             torch.save(cpk, cpk_path)
 
@@ -168,7 +168,7 @@ class Visualizer:
             occlusion_map = F.interpolate(occlusion_map, size=source.shape[1:3]).numpy()
             occlusion_map = np.transpose(occlusion_map, [0, 2, 3, 1])
             images.append(occlusion_map)
-        
+
         ## Mask
         if 'mask' in out:
             for i in range(out['mask'].shape[1]):
@@ -183,7 +183,7 @@ class Visualizer:
                     color = np.array((0, 0, 0))
 
                 color = color.reshape((1, 1, 1, 3))
-                
+
                 if i != 0:
                     images.append(mask * color)
                 else:
