@@ -92,7 +92,7 @@ def train(config, generator, discriminator, kp_detector, he_estimator, checkpoin
                     d_back_time.update(0)
                     losses_discriminator = {}
                 if i % 10 == 0:
-                    print(f"Iter [{i}/{len(dataloader)}] done g batch {g_batch_time.avg:.6f} g back {g_back_time.avg:.6f} d batch {d_batch_time.avg:.6f} d back {d_back_time.avg:.6f}")
+                    print(f"Iter [{i}/{len(dataloader)}] done g batch {g_batch_time.val:.6f} g back {g_back_time.val:.6f} d batch {d_batch_time.val:.6f} d back {d_back_time.val:.6f}")
                 losses_generator.update(losses_discriminator)
                 losses = {key: value.mean().detach().data.cpu().numpy() for key, value in losses_generator.items()}
                 logger.log_iter(losses=losses)
